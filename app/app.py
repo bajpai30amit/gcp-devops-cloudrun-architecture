@@ -8,7 +8,7 @@ app = Flask(__name__)
 @app.route("/")
 def home():
     return {
-        "application": "DevOps GCP Architecture POC",
+        "application": "DevOps GCP Architecture POC - CI/CD",
         "status": "running",
         "environment": os.getenv("ENVIRONMENT", "dev"),
         "hostname": socket.gethostname()
