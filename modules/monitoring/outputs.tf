@@ -12,3 +12,7 @@ output "cloud_run_latency_alert_policy" {
   description = "Cloud Run latency alert policy name"
   value       = google_monitoring_alert_policy.cloud_run_latency.name
 }
+output "prometheus_dashboard_id" {
+  description = "Prometheus application dashboard ID"
+  value       = google_monitoring_dashboard.prometheus_application.id
+}

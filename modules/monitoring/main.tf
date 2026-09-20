@@ -112,3 +112,116 @@ resource "google_monitoring_alert_policy" "cloud_run_latency" {
     mime_type = "text/markdown"
   }
 }
+# ============================================================
+# Prometheus Application Dashboard
+# ============================================================
+
+resource "google_monitoring_dashboard" "prometheus_application" {
+  project        = var.project_id
+  dashboard_json = <<EOF
+{
+  "displayName": "DevOps POC - Prometheus Application Dashboard",
+  "mosaicLayout": {
+    "columns": 12,
+    "tiles": [
+      {
+        "xPos": 0,
+        "yPos": 0,
+        "width": 6,
+        "height": 4,
+        "widget": {
+          "title": "Request Rate",
+          "xyChart": {
+            "dataSets": [
+              {
+                "timeSeriesQuery": {
+                  "prometheusQuery": "sum(rate(http_requests_total{service_name=\"${var.cloud_run_service_name}\"}[5m]))"
+                },
+                "plotType": "LINE",
+                "legendTemplate": "Requests/sec"
+              }
+            ],
+            "yAxis": {
+              "label": "Requests/sec",
+              "scale": "LINEAR"
+            }
+          }
+        }
+      },
+      {
+        "xPos": 6,
+        "yPos": 0,
+        "width": 6,
+        "height": 4,
+        "widget": {
+          "title": "Request Rate by Endpoint",
+          "xyChart": {
+            "dataSets": [
+              {
+                "timeSeriesQuery": {
+                  "prometheusQuery": "sum by (endpoint) (rate(http_requests_total{service_name=\"${var.cloud_run_service_name}\"}[5m]))"
+                },
+                "plotType": "LINE",
+                "legendTemplate": "$${metric.labels.endpoint}"
+              }
+            ],
+            "yAxis": {
+              "label": "Requests/sec",
+              "scale": "LINEAR"
+            }
+          }
+        }
+      },
+      {
+        "xPos": 0,
+        "yPos": 4,
+        "width": 6,
+        "height": 4,
+        "widget": {
+          "title": "HTTP Requests by Status Code",
+          "xyChart": {
+            "dataSets": [
+              {
+                "timeSeriesQuery": {
+                  "prometheusQuery": "sum by (status) (rate(http_requests_total{service_name=\"${var.cloud_run_service_name}\"}[5m]))"
+                },
+                "plotType": "LINE",
+                "legendTemplate": "HTTP $${metric.labels.status}"
+              }
+            ],
+            "yAxis": {
+              "label": "Requests/sec",
+              "scale": "LINEAR"
+            }
+          }
+        }
+      },
+      {
+        "xPos": 6,
+        "yPos": 4,
+        "width": 6,
+        "height": 4,
+        "widget": {
+          "title": "P95 Request Latency",
+          "xyChart": {
+            "dataSets": [
+              {
+                "timeSeriesQuery": {
+                  "prometheusQuery": "histogram_quantile(0.95, sum by (le) (rate(http_request_duration_seconds_bucket{service_name=\"${var.cloud_run_service_name}\"}[5m])))"
+                },
+                "plotType": "LINE",
+                "legendTemplate": "P95 latency"
+              }
+            ],
+            "yAxis": {
+              "label": "Seconds",
+              "scale": "LINEAR"
+            }
+          }
+        }
+      }
+    ]
+  }
+}
+EOF
+}
