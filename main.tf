@@ -11,7 +11,11 @@ module "project_services" {
     "secretmanager.googleapis.com",
     "storage.googleapis.com",
     "pubsub.googleapis.com",
-    "compute.googleapis.com"
+    "compute.googleapis.com",
+
+    # Observability
+    "monitoring.googleapis.com",
+    "logging.googleapis.com"
   ]
 }
 
