@@ -26,3 +26,7 @@ variable "name_prefix" {
   type        = string
   default     = "devops-poc"
 }
+variable "notification_email" {
+  description = "Email address used for Cloud Monitoring alerts"
+  type        = string
+}

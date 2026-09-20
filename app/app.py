@@ -31,7 +31,7 @@ def start_timer():
 
 @app.after_request
 def record_metrics(response):
-    if request.path != "/metrics":
+    if request.path not in ["/metrics", "/favicon.ico"]:
         REQUEST_COUNT.labels(
             method=request.method,
             endpoint=request.path,

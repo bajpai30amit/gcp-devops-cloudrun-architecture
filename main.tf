@@ -15,7 +15,8 @@ module "project_services" {
 
     # Observability
     "monitoring.googleapis.com",
-    "logging.googleapis.com"
+    "logging.googleapis.com",
+    "telemetry.googleapis.com"
   ]
 }
 
@@ -115,4 +116,30 @@ module "cloud_run" {
     module.project_services,
     module.iam
   ]
+}
+module "monitoring" {
+  source = "./modules/monitoring"
+
+  project_id             = var.project_id
+  region                 = var.region
+  cloud_run_service_name = module.cloud_run.service_name
+  notification_email     = var.notification_email
+
+  depends_on = [
+    module.project_services,
+    module.cloud_run
+  ]
+}
+resource "google_project_iam_member" "app_runtime_metric_writer" {
+  project = var.project_id
+  role    = "roles/monitoring.metricWriter"
+
+  member = "serviceAccount:${module.iam.service_accounts["app-runtime"]}"
+}
+
+resource "google_project_iam_member" "app_runtime_log_writer" {
+  project = var.project_id
+  role    = "roles/logging.logWriter"
+
+  member = "serviceAccount:${module.iam.service_accounts["app-runtime"]}"
 }
