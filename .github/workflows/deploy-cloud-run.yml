@@ -120,6 +120,7 @@ jobs:
             --project="${PROJECT_ID}" \
             --region="${REGION}" \
             --service-account="${RUNTIME_SERVICE_ACCOUNT}" \
+            --quiet \
             --container="app" \
             --image="${IMAGE}" \
             --port="8080" \
