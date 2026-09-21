@@ -128,19 +128,15 @@ def db_health():
         }
 
     except PyMongoError as e:
+    print(
+        f"MongoDB connection failed: {type(e).__name__}: {e}",
+        flush=True
+    )
 
-        # Log the actual MongoDB error to Cloud Logging.
-        # Do NOT return the internal exception to the client.
-        app.logger.error(
-            "MongoDB connection failed: %s",
-            str(e)
-        )
-
-        return {
-            "database": "mongodb",
-            "status": "connection_failed"
-        }, 500
-
+    return {
+        "database": "mongodb",
+        "status": "connection_failed"
+    }, 500
 
 # ============================================================
 # Prometheus Metrics Endpoint
