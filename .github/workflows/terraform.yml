@@ -1,0 +1,94 @@
+name: Terraform Infrastructure
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "**/*.tf"
+      - ".github/workflows/terraform.yml"
+
+  push:
+    branches:
+      - main
+    paths:
+      - "**/*.tf"
+      - ".github/workflows/terraform.yml"
+
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: terraform-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  TF_VERSION: "1.14.8"
+
+  # Terraform variables
+  TF_VAR_project_id: "watchful-idea-505906-u3"
+  TF_VAR_region: "us-central1"
+  TF_VAR_zone: "us-central1-a"
+  TF_VAR_environment: "dev"
+  TF_VAR_name_prefix: "devops-poc"
+  TF_VAR_notification_email: ${{ vars.TF_NOTIFICATION_EMAIL }}
+
+jobs:
+  terraform:
+    name: Terraform Validate, Plan and Apply
+    runs-on: ubuntu-latest
+
+    steps:
+      # -------------------------------------------------------
+      # Checkout
+      # -------------------------------------------------------
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # -------------------------------------------------------
+      # Keyless authentication using GitHub OIDC + GCP WIF
+      # Dedicated Terraform service account
+      # -------------------------------------------------------
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: "projects/927189967365/locations/global/workloadIdentityPools/github-pool/providers/github-provider"
+          service_account: "gcp-tf@watchful-idea-505906-u3.iam.gserviceaccount.com"
+
+      # -------------------------------------------------------
+      # Terraform
+      # -------------------------------------------------------
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Terraform Format Check
+        run: terraform fmt -check -recursive
+
+      - name: Terraform Init
+        run: terraform init -input=false
+
+      - name: Terraform Validate
+        run: terraform validate
+
+      - name: Terraform Plan
+        run: |
+          terraform plan \
+            -input=false \
+            -out=tfplan
+
+      # -------------------------------------------------------
+      # Apply only on push/merge to main
+      # PR and manual workflow_dispatch remain plan-only.
+      # -------------------------------------------------------
+      - name: Terraform Apply
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          terraform apply \
+            -input=false \
+            -auto-approve \
+            tfplan

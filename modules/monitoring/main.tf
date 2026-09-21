@@ -1,6 +1,6 @@
-# ---------------------------------------------------------
-# Email notification channel
-# ---------------------------------------------------------
+# ============================================================
+# Email Notification Channel
+# ============================================================
 
 resource "google_monitoring_notification_channel" "email" {
   project      = var.project_id
@@ -13,9 +13,9 @@ resource "google_monitoring_notification_channel" "email" {
 }
 
 
-# ---------------------------------------------------------
+# ============================================================
 # Cloud Run 5xx Error Alert
-# ---------------------------------------------------------
+# ============================================================
 
 resource "google_monitoring_alert_policy" "cloud_run_5xx" {
   project      = var.project_id
@@ -60,12 +60,12 @@ resource "google_monitoring_alert_policy" "cloud_run_5xx" {
 }
 
 
-# ---------------------------------------------------------
+# ============================================================
 # Cloud Run High Latency Alert
 #
 # request_latencies is measured in milliseconds.
 # Trigger if p95 latency exceeds 2 seconds for 5 minutes.
-# ---------------------------------------------------------
+# ============================================================
 
 resource "google_monitoring_alert_policy" "cloud_run_latency" {
   project      = var.project_id
@@ -112,12 +112,15 @@ resource "google_monitoring_alert_policy" "cloud_run_latency" {
     mime_type = "text/markdown"
   }
 }
+
+
 # ============================================================
 # Prometheus Application Dashboard
 # ============================================================
 
 resource "google_monitoring_dashboard" "prometheus_application" {
-  project        = var.project_id
+  project = var.project_id
+
   dashboard_json = <<EOF
 {
   "displayName": "DevOps POC - Prometheus Application Dashboard",
@@ -138,7 +141,8 @@ resource "google_monitoring_dashboard" "prometheus_application" {
                   "prometheusQuery": "sum(rate(http_requests_total{service_name=\"${var.cloud_run_service_name}\"}[5m]))"
                 },
                 "plotType": "LINE",
-                "legendTemplate": "Requests/sec"
+                "legendTemplate": "Requests/sec",
+                "targetAxis": "Y1"
               }
             ],
             "yAxis": {
@@ -162,7 +166,8 @@ resource "google_monitoring_dashboard" "prometheus_application" {
                   "prometheusQuery": "sum by (endpoint) (rate(http_requests_total{service_name=\"${var.cloud_run_service_name}\"}[5m]))"
                 },
                 "plotType": "LINE",
-                "legendTemplate": "$${metric.labels.endpoint}"
+                "legendTemplate": "$${metric.labels.endpoint}",
+                "targetAxis": "Y1"
               }
             ],
             "yAxis": {
@@ -186,7 +191,8 @@ resource "google_monitoring_dashboard" "prometheus_application" {
                   "prometheusQuery": "sum by (status) (rate(http_requests_total{service_name=\"${var.cloud_run_service_name}\"}[5m]))"
                 },
                 "plotType": "LINE",
-                "legendTemplate": "HTTP $${metric.labels.status}"
+                "legendTemplate": "HTTP $${metric.labels.status}",
+                "targetAxis": "Y1"
               }
             ],
             "yAxis": {
@@ -210,7 +216,8 @@ resource "google_monitoring_dashboard" "prometheus_application" {
                   "prometheusQuery": "histogram_quantile(0.95, sum by (le) (rate(http_request_duration_seconds_bucket{service_name=\"${var.cloud_run_service_name}\"}[5m])))"
                 },
                 "plotType": "LINE",
-                "legendTemplate": "P95 latency"
+                "legendTemplate": "P95 latency",
+                "targetAxis": "Y1"
               }
             ],
             "yAxis": {
@@ -224,4 +231,22 @@ resource "google_monitoring_dashboard" "prometheus_application" {
   }
 }
 EOF
+
+  # Google Monitoring normalizes dashboard_json after creation.
+  # For example, it adds/removes API-managed fields such as:
+  #   - etag
+  #   - dashboard name
+  #   - zero-value xPos/yPos fields
+  #
+  # Without this rule Terraform continually reports an in-place
+  # dashboard update even when the dashboard configuration has
+  # not functionally changed.
+  #
+  # NOTE:
+  # While this is enabled, intentional changes to dashboard_json
+  # will also be ignored by Terraform. Remove this lifecycle rule
+  # temporarily when intentionally modifying the dashboard.
+  lifecycle {
+    ignore_changes = [dashboard_json]
+  }
 }
