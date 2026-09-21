@@ -33,3 +33,5 @@ Thumbs.db
 
 *.tfstate
 *.tfstate.*
+# Local MongoDB backups
+backups/
