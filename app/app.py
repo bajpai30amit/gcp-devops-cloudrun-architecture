@@ -108,9 +108,9 @@ def health():
 def db_health():
 
     if not mongo_client:
-
-        app.logger.error(
-            "MongoDB connection failed: MONGODB_URI is not configured"
+        print(
+            "MongoDB connection failed: MONGODB_URI is not configured",
+            flush=True
         )
 
         return {
@@ -119,7 +119,6 @@ def db_health():
         }, 500
 
     try:
-
         mongo_client.admin.command("ping")
 
         return {
@@ -128,15 +127,15 @@ def db_health():
         }
 
     except PyMongoError as e:
-    print(
-        f"MongoDB connection failed: {type(e).__name__}: {e}",
-        flush=True
-    )
+        print(
+            f"MongoDB connection failed: {type(e).__name__}: {e}",
+            flush=True
+        )
 
-    return {
-        "database": "mongodb",
-        "status": "connection_failed"
-    }, 500
+        return {
+            "database": "mongodb",
+            "status": "connection_failed"
+        }, 500
 
 # ============================================================
 # Prometheus Metrics Endpoint
