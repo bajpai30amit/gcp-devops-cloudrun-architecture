@@ -24,6 +24,20 @@ resource "google_cloud_run_v2_service" "app" {
         container_port = var.container_port
       }
 
+      # -------------------------------------------------------
+      # MongoDB Atlas connection string from Secret Manager
+      # -------------------------------------------------------
+      env {
+        name = "MONGODB_URI"
+
+        value_source {
+          secret_key_ref {
+            secret  = "mongodb-uri"
+            version = "latest"
+          }
+        }
+      }
+
       resources {
         limits = {
           cpu    = "1"

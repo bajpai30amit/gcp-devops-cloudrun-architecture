@@ -143,3 +143,11 @@ resource "google_project_iam_member" "app_runtime_log_writer" {
 
   member = "serviceAccount:${module.iam.service_accounts["app-runtime"]}"
 }
+resource "google_secret_manager_secret_iam_member" "mongodb_runtime_access" {
+  project   = var.project_id
+  secret_id = "mongodb-uri"
+
+  role   = "roles/secretmanager.secretAccessor"
+  member = "serviceAccount:${module.iam.service_accounts["app-runtime"]}"
+}
+

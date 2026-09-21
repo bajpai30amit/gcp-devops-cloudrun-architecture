@@ -5,11 +5,35 @@ from prometheus_client import (
     generate_latest,
     CONTENT_TYPE_LATEST
 )
+from pymongo import MongoClient
+from pymongo.errors import PyMongoError
+
 import os
 import socket
 import time
 
+
 app = Flask(__name__)
+
+
+# ============================================================
+# MongoDB Configuration
+# ============================================================
+
+MONGODB_URI = os.getenv("MONGODB_URI")
+
+mongo_client = None
+
+if MONGODB_URI:
+    mongo_client = MongoClient(
+        MONGODB_URI,
+        serverSelectionTimeoutMS=5000
+    )
+
+
+# ============================================================
+# Prometheus Metrics
+# ============================================================
 
 REQUEST_COUNT = Counter(
     "http_requests_total",
@@ -31,7 +55,10 @@ def start_timer():
 
 @app.after_request
 def record_metrics(response):
+
+    # Do not count Prometheus scraping or browser favicon requests
     if request.path not in ["/metrics", "/favicon.ico"]:
+
         REQUEST_COUNT.labels(
             method=request.method,
             endpoint=request.path,
@@ -45,6 +72,10 @@ def record_metrics(response):
 
     return response
 
+
+# ============================================================
+# Application Endpoints
+# ============================================================
 
 @app.route("/")
 def home():
@@ -63,6 +94,39 @@ def health():
     }
 
 
+# ============================================================
+# MongoDB Health Check
+# ============================================================
+
+@app.route("/db-health")
+def db_health():
+
+    if not mongo_client:
+        return {
+            "database": "mongodb",
+            "status": "configuration_missing"
+        }, 500
+
+    try:
+        mongo_client.admin.command("ping")
+
+        return {
+            "database": "mongodb",
+            "status": "connected"
+        }
+
+    except PyMongoError:
+        # Do not expose MongoDB URI, credentials or internal errors
+        return {
+            "database": "mongodb",
+            "status": "connection_failed"
+        }, 500
+
+
+# ============================================================
+# Prometheus Metrics Endpoint
+# ============================================================
+
 @app.route("/metrics")
 def metrics():
     return Response(
@@ -71,6 +135,14 @@ def metrics():
     )
 
 
+# ============================================================
+# Application Startup
+# ============================================================
+
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8080))
-    app.run(host="0.0.0.0", port=port)
+
+    app.run(
+        host="0.0.0.0",
+        port=port
+    )
