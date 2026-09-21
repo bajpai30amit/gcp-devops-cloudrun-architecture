@@ -1,10 +1,12 @@
 from flask import Flask, Response, request
+
 from prometheus_client import (
     Counter,
     Histogram,
     generate_latest,
     CONTENT_TYPE_LATEST
 )
+
 from pymongo import MongoClient
 from pymongo.errors import PyMongoError
 
@@ -68,7 +70,9 @@ def record_metrics(response):
         REQUEST_LATENCY.labels(
             method=request.method,
             endpoint=request.path
-        ).observe(time.time() - request.start_time)
+        ).observe(
+            time.time() - request.start_time
+        )
 
     return response
 
@@ -79,6 +83,7 @@ def record_metrics(response):
 
 @app.route("/")
 def home():
+
     return {
         "application": "DevOps GCP Architecture POC",
         "status": "running",
@@ -89,6 +94,7 @@ def home():
 
 @app.route("/health")
 def health():
+
     return {
         "status": "healthy"
     }
@@ -102,12 +108,18 @@ def health():
 def db_health():
 
     if not mongo_client:
+
+        app.logger.error(
+            "MongoDB connection failed: MONGODB_URI is not configured"
+        )
+
         return {
             "database": "mongodb",
             "status": "configuration_missing"
         }, 500
 
     try:
+
         mongo_client.admin.command("ping")
 
         return {
@@ -115,8 +127,15 @@ def db_health():
             "status": "connected"
         }
 
-    except PyMongoError:
-        # Do not expose MongoDB URI, credentials or internal errors
+    except PyMongoError as e:
+
+        # Log the actual MongoDB error to Cloud Logging.
+        # Do NOT return the internal exception to the client.
+        app.logger.error(
+            "MongoDB connection failed: %s",
+            str(e)
+        )
+
         return {
             "database": "mongodb",
             "status": "connection_failed"
@@ -129,6 +148,7 @@ def db_health():
 
 @app.route("/metrics")
 def metrics():
+
     return Response(
         generate_latest(),
         mimetype=CONTENT_TYPE_LATEST
@@ -140,7 +160,13 @@ def metrics():
 # ============================================================
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 8080))
+
+    port = int(
+        os.environ.get(
+            "PORT",
+            8080
+        )
+    )
 
     app.run(
         host="0.0.0.0",
