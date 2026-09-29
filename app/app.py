@@ -212,20 +212,20 @@ def publish_event():
 
 @app.post("/pubsub")
 def receive_pubsub():
-
     envelope = request.get_json(silent=True)
 
     if not isinstance(envelope, dict):
-        return {
-            "error": "Invalid Pub/Sub request"
-        }, 400
+        app.logger.warning("Invalid Pub/Sub request envelope")
+        return {"error": "Invalid Pub/Sub request"}, 400
 
     message = envelope.get("message")
 
     if not isinstance(message, dict):
-        return {
-            "error": "Missing Pub/Sub message"
-        }, 400
+        app.logger.warning("Missing Pub/Sub message")
+        return {"error": "Missing Pub/Sub message"}, 400
+
+    # Extract the message ID before decoding the payload.
+    message_id = message.get("messageId", "unknown")
 
     try:
         encoded_data = message.get("data", "")
@@ -233,14 +233,12 @@ def receive_pubsub():
         decoded_data = base64.b64decode(
             encoded_data,
             validate=True
-        )
+        ).decode("utf-8")
 
         event = json.loads(decoded_data)
 
         if not isinstance(event, dict):
             raise ValueError("Expected a JSON object")
-
-        message_id = message.get("messageId")
 
         app.logger.info(
             "Received Pub/Sub message %s: %s",
@@ -256,20 +254,28 @@ def receive_pubsub():
             "message_id": message_id
         }, 200
 
-    except (ValueError, binascii.Error):
-        app.logger.warning("Invalid Pub/Sub message data")
+    except (ValueError, UnicodeDecodeError, binascii.Error) as exc:
+        app.logger.warning(
+            "Invalid Pub/Sub message %s: %s",
+            message_id,
+            exc
+        )
 
         return {
-            "error": "Invalid message data"
+            "error": "Invalid message data",
+            "message_id": message_id
         }, 400
 
     except Exception:
-        app.logger.exception("Pub/Sub processing failed")
+        app.logger.exception(
+            "Pub/Sub processing failed for message %s",
+            message_id
+        )
 
         return {
-            "error": "Processing failed"
+            "error": "Processing failed",
+            "message_id": message_id
         }, 500
-
 
 # ============================================================
 # Prometheus Metrics Endpoint
