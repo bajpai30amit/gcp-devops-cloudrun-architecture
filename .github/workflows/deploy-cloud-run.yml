@@ -1,3 +1,4 @@
+
 name: Cloud Run CI/CD
 
 on:
@@ -21,6 +22,9 @@ env:
   IMAGE_NAME: devops-poc-app
   CLOUD_RUN_SERVICE: devops-poc-app
 
+  # Pub/Sub configuration
+  TOPIC_ID: devops-poc-events
+
   RUNTIME_SERVICE_ACCOUNT: app-runtime@watchful-idea-505906-u3.iam.gserviceaccount.com
 
   PROMETHEUS_SIDECAR_IMAGE: us-docker.pkg.dev/cloud-ops-agents-artifacts/cloud-run-gmp-sidecar/cloud-run-gmp-sidecar:1.2.0
@@ -38,7 +42,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-
       # -------------------------------------------------------
       # 2. Authenticate to GCP using Workload Identity
       # -------------------------------------------------------
@@ -48,13 +51,11 @@ jobs:
           workload_identity_provider: projects/927189967365/locations/global/workloadIdentityPools/github-pool/providers/github-provider
           service_account: github-actions@watchful-idea-505906-u3.iam.gserviceaccount.com
 
-
       # -------------------------------------------------------
       # 3. Configure gcloud
       # -------------------------------------------------------
       - name: Set up Google Cloud CLI
         uses: google-github-actions/setup-gcloud@v2
-
 
       # -------------------------------------------------------
       # 4. Configure Docker authentication
@@ -62,7 +63,6 @@ jobs:
       - name: Configure Docker authentication
         run: |
           gcloud auth configure-docker "${REGION}-docker.pkg.dev" --quiet
-
 
       # -------------------------------------------------------
       # 5. Build application Docker image
@@ -80,7 +80,6 @@ jobs:
             -t "${IMAGE}" \
             ./app
 
-
       # -------------------------------------------------------
       # 6. Push application image to Artifact Registry
       # -------------------------------------------------------
@@ -93,17 +92,16 @@ jobs:
 
           docker push "${IMAGE}"
 
-
       # -------------------------------------------------------
       # 7. Deploy multi-container Cloud Run revision
       #
-      # Container 1:
-      #   app
+      # Container 1: app
       #   Flask application
       #   Port 8080
+      #   MongoDB secret
+      #   Pub/Sub environment variables
       #
-      # Container 2:
-      #   collector
+      # Container 2: collector
       #   Managed Service for Prometheus sidecar
       #
       # Explicitly declaring both containers prevents the
@@ -124,10 +122,9 @@ jobs:
             --image="${IMAGE}" \
             --port="8080" \
             --set-secrets="MONGODB_URI=mongodb-uri:latest" \
+            --update-env-vars="PROJECT_ID=${PROJECT_ID},TOPIC_ID=${TOPIC_ID}" \
             --container="collector" \
             --image="${PROMETHEUS_SIDECAR_IMAGE}"
-
-
 
       # -------------------------------------------------------
       # 8. Ensure public access
@@ -141,7 +138,6 @@ jobs:
             --project="${PROJECT_ID}" \
             --member="allUsers" \
             --role="roles/run.invoker"
-
 
       # -------------------------------------------------------
       # 9. Get Cloud Run URL
@@ -157,7 +153,6 @@ jobs:
           echo "Cloud Run URL: ${URL}"
 
           echo "url=${URL}" >> "${GITHUB_OUTPUT}"
-
 
       # -------------------------------------------------------
       # 10. Verify application health
@@ -180,7 +175,6 @@ jobs:
           echo ""
           echo "Application health check successful."
 
-
       # -------------------------------------------------------
       # 11. Verify Prometheus endpoint
       # -------------------------------------------------------
@@ -202,7 +196,6 @@ jobs:
 
           echo ""
           echo "Prometheus metrics endpoint verified."
-
 
       # -------------------------------------------------------
       # 12. Display deployed Cloud Run revision
